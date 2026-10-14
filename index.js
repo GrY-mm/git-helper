@@ -3,6 +3,7 @@
 import { confirm, intro, isCancel, multiselect, outro, select, spinner, text } from '@clack/prompts';
 import { execFile } from 'node:child_process';
 import { realpathSync } from 'node:fs';
+import { basename } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
@@ -15,6 +16,19 @@ async function git(args) {
         maxBuffer: 10 * 1024 * 1024,
     });
     return stdout;
+}
+
+function section(title) {
+    console.log(`\n${chalk.bold.cyan(`◆ ${title}`)}`);
+    console.log(chalk.gray('─'.repeat(title.length + 2)));
+}
+
+function success(message) {
+    console.log(`${chalk.green.bold('✓')} ${message}`);
+}
+
+function warning(message) {
+    console.log(`${chalk.yellow.bold('!')} ${message}`);
 }
 
 export function parseStatusOutput(output) {
@@ -52,16 +66,24 @@ async function getChanges() {
 function changeOptions(changes) {
     return changes.map(({ status, file }) => ({
         value: file,
-        label: `${statusColor(status)(`[${status}]`)} ${displayPath(file)}`,
+        label: `${statusColor(status).bold(`[${status}]`)} ${displayPath(file)}`,
     }));
 }
 
 async function showStatus() {
+    section('Estado del repositorio');
     console.log(await git(['status']));
 }
 
 async function showHistory() {
-    const history = await git(['log', '-n', '20', '--date=relative', '--pretty=format:%h%x09%s%x09%cr']);
+    section('Últimos commits');
+    const history = await git([
+        'log',
+        '-n',
+        '20',
+        '--date=relative',
+        '--pretty=format:%C(yellow)%h%Creset  %C(cyan)%s%Creset  %C(dim)(%cr)%Creset',
+    ]);
     console.log(history || chalk.gray('Todavía no hay commits en este repositorio.'));
     console.log();
 }
@@ -69,10 +91,11 @@ async function showHistory() {
 async function createCommit() {
     const changes = await getChanges();
     if (!changes.length) {
-        console.log(chalk.yellow('No hay cambios para incluir en un commit.'));
+        warning('No hay cambios para incluir en un commit.');
         return;
     }
 
+    section('Preparar commit');
     const selectedFiles = await multiselect({
         message: 'Selecciona los archivos que quieres incluir (Espacio para marcar, Enter para confirmar):',
         options: changeOptions(changes),
@@ -101,9 +124,9 @@ async function createCommit() {
         await git(['--literal-pathspecs', 'add', '--', ...selectedFiles]);
         task.message('Creando el commit seleccionado...');
         await git(['--literal-pathspecs', 'commit', '--only', '-m', commitMessage, '--', ...selectedFiles]);
-        task.stop(chalk.green('Commit creado localmente. Los demás cambios preparados no se incluyeron.'));
+        task.stop(`${chalk.green.bold('✓')} Commit creado localmente. Los demás cambios preparados no se incluyeron.`);
     } catch (error) {
-        task.stop(chalk.red('No se pudo completar el commit.'));
+        task.stop(`${chalk.red.bold('✗')} No se pudo completar el commit.`);
         throw error;
     }
 
@@ -111,21 +134,22 @@ async function createCommit() {
         message: '¿Quieres subir los cambios con git push ahora?',
     });
     if (isCancel(shouldPush) || !shouldPush) {
-        console.log(chalk.gray('El commit permanece en local; puedes subirlo más tarde con git push.'));
+        console.log(`${chalk.gray('↳')} El commit permanece en local; puedes subirlo más tarde con git push.`);
         return;
     }
 
     task.start('Subiendo cambios...');
     try {
         await git(['push']);
-        task.stop(chalk.green('Cambios subidos correctamente.'));
+        task.stop(`${chalk.green.bold('✓')} Cambios subidos correctamente.`);
     } catch (error) {
-        task.stop(chalk.red('El commit se creó, pero no se pudo completar el push.'));
+        task.stop(`${chalk.red.bold('✗')} El commit se creó, pero no se pudo completar el push.`);
         throw error;
     }
 }
 
 async function manageBranches() {
+    section('Ramas');
     const action = await select({
         message: 'Gestión de ramas',
         options: [
@@ -143,11 +167,11 @@ async function manageBranches() {
             .split(/\r?\n/)
             .filter(Boolean);
         if (!branches.length) {
-            console.log(chalk.yellow('Este repositorio todavía no tiene ramas con commits.'));
+            warning('Este repositorio todavía no tiene ramas con commits.');
             return;
         }
         for (const branch of branches) {
-            console.log(`${branch === current.trim() ? chalk.green('* ') : '  '}${branch}`);
+            console.log(`${branch === current.trim() ? chalk.green.bold('● actual ') : chalk.gray('○         ')}${chalk.cyan(branch)}`);
         }
         return;
     }
@@ -168,7 +192,7 @@ async function manageBranches() {
         });
         if (isCancel(name)) return;
         await git(['switch', '-c', name]);
-        console.log(chalk.green(`Cambiado a la nueva rama "${name}".`));
+        success(`Cambiado a la nueva rama ${chalk.cyan(name)}.`);
         return;
     }
 
@@ -178,7 +202,7 @@ async function manageBranches() {
     const current = (await git(['branch', '--show-current'])).trim();
     const available = branches.filter((branch) => branch !== current);
     if (!available.length) {
-        console.log(chalk.yellow('No hay otras ramas a las que cambiar.'));
+        warning('No hay otras ramas a las que cambiar.');
         return;
     }
 
@@ -188,10 +212,11 @@ async function manageBranches() {
     });
     if (isCancel(branch)) return;
     await git(['switch', branch]);
-    console.log(chalk.green(`Cambiado a la rama "${branch}".`));
+    success(`Cambiado a la rama ${chalk.cyan(branch)}.`);
 }
 
 async function manageStash() {
+    section('Stash');
     const action = await select({
         message: 'Gestión de stash',
         options: [
@@ -215,11 +240,13 @@ async function manageStash() {
                 };
             });
         if (!stashes.length) {
-            console.log(chalk.yellow('No hay stashes guardados.'));
+            warning('No hay stashes guardados.');
             return;
         }
         if (action === 'list') {
-            for (const stash of stashes) console.log(`${stash.ref}: ${stash.description}`);
+            for (const stash of stashes) {
+                console.log(`${chalk.magenta.bold(stash.ref)}  ${chalk.gray(stash.description)}`);
+            }
             return;
         }
 
@@ -232,13 +259,13 @@ async function manageStash() {
         });
         if (isCancel(stashRef)) return;
         await git(['stash', 'apply', stashRef]);
-        console.log(chalk.green('Stash aplicado; se conserva en la lista.'));
+        success('Stash aplicado; se conserva en la lista.');
         return;
     }
 
     const changes = await getChanges();
     if (!changes.length) {
-        console.log(chalk.yellow('No hay cambios para guardar.'));
+        warning('No hay cambios para guardar.');
         return;
     }
     const message = await text({
@@ -249,13 +276,14 @@ async function manageStash() {
     if (isCancel(message)) return;
 
     await git(['stash', 'push', '--include-untracked', '--message', message]);
-    console.log(chalk.green('Cambios guardados en el stash.'));
+    success('Cambios guardados en el stash.');
 }
 
 async function discardChanges() {
+    section('Descartar cambios');
     const changes = await getChanges();
     if (!changes.length) {
-        console.log(chalk.yellow('No hay cambios para descartar.'));
+        warning('No hay cambios para descartar.');
         return;
     }
     const selectedFiles = await multiselect({
@@ -268,8 +296,9 @@ async function discardChanges() {
     const selectedChanges = changes.filter(({ file }) => selectedFiles.includes(file));
     const paths = selectedChanges.map(({ file }) => file);
     const displayNames = selectedChanges.map(({ file }) => displayPath(file)).join(', ');
+    console.log(`${chalk.bgRed.white.bold(' ATENCIÓN ')} ${chalk.red('Esta operación no se puede deshacer.')}`);
     const confirmed = await confirm({
-        message: `Esto eliminará permanentemente los cambios de: ${displayNames}. ¿Continuar?`,
+        message: `Descartar permanentemente: ${chalk.cyan(displayNames)}. ¿Continuar?`,
     });
     if (isCancel(confirmed) || !confirmed) {
         outro('Operación cancelada.');
@@ -301,21 +330,26 @@ async function discardChanges() {
         }
         await git(['--literal-pathspecs', 'clean', '-f', '--', ...newFiles]);
     }
-    console.log(chalk.green('Cambios seleccionados descartados.'));
+    success('Cambios seleccionados descartados.');
 }
 
 async function run() {
-    intro(chalk.bgBlue(' Git Interactive Helper '));
+    intro(`${chalk.bgCyan.black.bold(' ghelp ')} ${chalk.gray('Git Interactive Helper')}`);
 
     try {
-        await git(['rev-parse', '--show-toplevel']);
+        const root = (await git(['rev-parse', '--show-toplevel'])).trim();
+        console.log(`${chalk.gray('📁')} ${chalk.bold(basename(root))}`);
         let done = false;
         while (!done) {
             const changes = await getChanges();
+            const branch = (await git(['branch', '--show-current'])).trim() || 'sin rama';
+            console.log(`\n${chalk.gray('rama')} ${chalk.cyan.bold(branch)}  ${chalk.gray('│')}  ${
+                changes.length
+                    ? chalk.yellow.bold(`${changes.length} cambio(s)`)
+                    : chalk.green('árbol limpio')
+            }`);
             const action = await select({
-                message: changes.length
-                    ? `¿Qué quieres hacer? (${changes.length} cambio(s) detectado(s))`
-                    : '¿Qué quieres hacer? (directorio de trabajo limpio)',
+                message: '¿Qué quieres hacer?',
                 options: [
                     { value: 'status', label: 'Ver git status completo' },
                     { value: 'commit', label: 'Crear un commit seleccionando archivos' },
@@ -341,7 +375,7 @@ async function run() {
         outro('¡Hasta luego!');
     } catch (error) {
         const detail = error.stderr?.trim() || error.message;
-        console.error(chalk.red('Ocurrió un error:'), detail);
+        console.error(`\n${chalk.red.bold('✗ Ocurrió un error')}\n${chalk.gray(detail)}`);
         outro('Proceso interrumpido.');
         process.exitCode = 1;
     }
