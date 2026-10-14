@@ -4,15 +4,15 @@
 
 ## Funciones
 
+- Crear rápidamente un commit con todos los cambios del repositorio.
+- Crear un commit seleccionando archivos y consultar el historial de commits.
 - Revisar el estado completo del repositorio.
-- Seleccionar archivos individuales para crear un commit local; otros cambios ya preparados se mantienen fuera de ese commit.
-- Elegir si se ejecuta `git push` después de crear el commit.
-- Consultar los últimos 20 commits.
+- Elegir si se ejecuta `git push` después de crear un commit con selección de archivos.
 - Listar ramas, crear una rama y cambiar de rama.
 - Guardar cambios en un stash (incluidos archivos nuevos), ver stashes y aplicar uno sin eliminarlo.
 - Descartar cambios seleccionados con confirmación explícita.
 
-Las operaciones de Git se ejecutan en el repositorio actual. El descarte de cambios es permanente; revisa cuidadosamente la selección antes de confirmarla.
+El menú principal agrupa las acciones de commits, cambios, ramas y stash. El commit rápido incluye todos los cambios y se queda en local; el commit con selección mantiene fuera del commit los demás cambios preparados. El descarte de cambios es permanente; revisa cuidadosamente la selección antes de confirmarla.
 
 ## Consejos para escribir
 

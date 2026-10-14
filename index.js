@@ -23,6 +23,10 @@ function section(title) {
     console.log(chalk.gray('─'.repeat(title.length + 2)));
 }
 
+function clearScreen() {
+    console.clear();
+}
+
 function success(message) {
     console.log(`${chalk.green.bold('✓')} ${message}`);
 }
@@ -148,7 +152,77 @@ async function createCommit() {
     }
 }
 
+async function quickCommit() {
+    const changes = await getChanges();
+    if (!changes.length) {
+        warning('No hay cambios para incluir en un commit.');
+        return;
+    }
+
+    section('Commit rápido');
+    console.log(chalk.gray(`${changes.length} archivo(s) incluirán todos sus cambios.`));
+    const commitMessage = await text({
+        message: 'Mensaje del commit:',
+        placeholder: 'feat: describe el cambio',
+        validate: (value) => value.trim() ? undefined : 'El mensaje no puede estar vacío.',
+    });
+    if (isCancel(commitMessage)) return;
+
+    const confirmed = await confirm({
+        message: `¿Confirmas crear un commit con todos los cambios y el mensaje "${commitMessage}"?`,
+    });
+    if (isCancel(confirmed) || !confirmed) {
+        outro('Operación cancelada.');
+        return;
+    }
+
+    const task = spinner();
+    task.start('Preparando todos los cambios...');
+    try {
+        await git(['add', '--all']);
+        task.message('Creando el commit...');
+        await git(['commit', '-m', commitMessage]);
+        task.stop(`${chalk.green.bold('✓')} Commit creado localmente.`);
+    } catch (error) {
+        task.stop(`${chalk.red.bold('✗')} No se pudo completar el commit.`);
+        throw error;
+    }
+}
+
+async function manageCommits() {
+    clearScreen();
+    section('Commits');
+    const action = await select({
+        message: '¿Qué quieres hacer con los commits?',
+        options: [
+            { value: 'create', label: 'Crear commit seleccionando archivos' },
+            { value: 'history', label: 'Ver historial de commits' },
+            { value: 'back', label: 'Volver al menú principal' },
+        ],
+    });
+    if (isCancel(action) || action === 'back') return;
+    if (action === 'create') await createCommit();
+    if (action === 'history') await showHistory();
+}
+
+async function manageChanges() {
+    clearScreen();
+    section('Cambios');
+    const action = await select({
+        message: '¿Qué quieres hacer con los cambios?',
+        options: [
+            { value: 'status', label: 'Ver estado completo' },
+            { value: 'discard', label: 'Descartar cambios seleccionados' },
+            { value: 'back', label: 'Volver al menú principal' },
+        ],
+    });
+    if (isCancel(action) || action === 'back') return;
+    if (action === 'status') await showStatus();
+    if (action === 'discard') await discardChanges();
+}
+
 async function manageBranches() {
+    clearScreen();
     section('Ramas');
     const action = await select({
         message: 'Gestión de ramas',
@@ -216,6 +290,7 @@ async function manageBranches() {
 }
 
 async function manageStash() {
+    clearScreen();
     section('Stash');
     const action = await select({
         message: 'Gestión de stash',
@@ -334,13 +409,13 @@ async function discardChanges() {
 }
 
 async function run() {
-    intro(`${chalk.bgCyan.black.bold(' ghelp ')} ${chalk.gray('Git Interactive Helper')}`);
-
     try {
         const root = (await git(['rev-parse', '--show-toplevel'])).trim();
-        console.log(`${chalk.gray('📁')} ${chalk.bold(basename(root))}`);
         let done = false;
         while (!done) {
+            clearScreen();
+            intro(`${chalk.bgCyan.black.bold(' ghelp ')} ${chalk.gray('Git Interactive Helper')}`);
+            console.log(`${chalk.gray('📁')} ${chalk.bold(basename(root))}`);
             const changes = await getChanges();
             const branch = (await git(['branch', '--show-current'])).trim() || 'sin rama';
             console.log(`\n${chalk.gray('rama')} ${chalk.cyan.bold(branch)}  ${chalk.gray('│')}  ${
@@ -351,12 +426,11 @@ async function run() {
             const action = await select({
                 message: '¿Qué quieres hacer?',
                 options: [
-                    { value: 'status', label: 'Ver git status completo' },
-                    { value: 'commit', label: 'Crear un commit seleccionando archivos' },
-                    { value: 'history', label: 'Consultar historial de commits' },
-                    { value: 'branches', label: 'Ver y gestionar ramas' },
-                    { value: 'stash', label: 'Guardar, ver o aplicar stashes' },
-                    { value: 'discard', label: 'Descartar cambios seleccionados' },
+                    { value: 'quickCommit', label: 'Commit rápido (todos los cambios)' },
+                    { value: 'commits', label: 'Commits' },
+                    { value: 'changes', label: 'Cambios' },
+                    { value: 'branches', label: 'Ramas' },
+                    { value: 'stash', label: 'Stash' },
                     { value: 'exit', label: 'Salir' },
                 ],
             });
@@ -365,12 +439,11 @@ async function run() {
                 done = true;
                 continue;
             }
-            if (action === 'status') await showStatus();
-            if (action === 'commit') await createCommit();
-            if (action === 'history') await showHistory();
+            if (action === 'quickCommit') await quickCommit();
+            if (action === 'commits') await manageCommits();
+            if (action === 'changes') await manageChanges();
             if (action === 'branches') await manageBranches();
             if (action === 'stash') await manageStash();
-            if (action === 'discard') await discardChanges();
         }
         outro('¡Hasta luego!');
     } catch (error) {
