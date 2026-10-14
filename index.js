@@ -56,10 +56,6 @@ function changeOptions(changes) {
     }));
 }
 
-function cancelled(value) {
-    return isCancel(value);
-}
-
 async function showStatus() {
     console.log(await git(['status']));
 }
@@ -82,18 +78,19 @@ async function createCommit() {
         options: changeOptions(changes),
         required: true,
     });
-    if (cancelled(selectedFiles)) return;
+    if (isCancel(selectedFiles)) return;
 
     const commitMessage = await text({
-        message: 'Escribe el mensaje para el commit:',
+        message: 'Mensaje del commit (ej.: feat: añade inicio de sesión):',
+        placeholder: 'feat: añade inicio de sesión',
         validate: (value) => value.trim() ? undefined : 'El mensaje no puede estar vacío.',
     });
-    if (cancelled(commitMessage)) return;
+    if (isCancel(commitMessage)) return;
 
     const confirmed = await confirm({
         message: `¿Confirmas crear un commit con ${selectedFiles.length} archivo(s) y el mensaje "${commitMessage}"?`,
     });
-    if (cancelled(confirmed) || !confirmed) {
+    if (isCancel(confirmed) || !confirmed) {
         outro('Operación cancelada.');
         return;
     }
@@ -113,7 +110,7 @@ async function createCommit() {
     const shouldPush = await confirm({
         message: '¿Quieres subir los cambios con git push ahora?',
     });
-    if (cancelled(shouldPush) || !shouldPush) {
+    if (isCancel(shouldPush) || !shouldPush) {
         console.log(chalk.gray('El commit permanece en local; puedes subirlo más tarde con git push.'));
         return;
     }
@@ -138,7 +135,7 @@ async function manageBranches() {
             { value: 'back', label: 'Volver al menú principal' },
         ],
     });
-    if (cancelled(action) || action === 'back') return;
+    if (isCancel(action) || action === 'back') return;
 
     if (action === 'list') {
         const current = await git(['branch', '--show-current']);
@@ -157,7 +154,8 @@ async function manageBranches() {
 
     if (action === 'create') {
         const name = await text({
-            message: 'Nombre de la nueva rama:',
+            message: 'Nombre de la rama (ej.: feature/inicio-sesion o fix/error-login):',
+            placeholder: 'feature/descripcion-corta',
             validate: async (value) => {
                 if (!value.trim()) return 'El nombre no puede estar vacío.';
                 try {
@@ -168,7 +166,7 @@ async function manageBranches() {
                 return undefined;
             },
         });
-        if (cancelled(name)) return;
+        if (isCancel(name)) return;
         await git(['switch', '-c', name]);
         console.log(chalk.green(`Cambiado a la nueva rama "${name}".`));
         return;
@@ -188,7 +186,7 @@ async function manageBranches() {
         message: '¿A qué rama quieres cambiar?',
         options: available.map((value) => ({ value, label: value })),
     });
-    if (cancelled(branch)) return;
+    if (isCancel(branch)) return;
     await git(['switch', branch]);
     console.log(chalk.green(`Cambiado a la rama "${branch}".`));
 }
@@ -203,7 +201,7 @@ async function manageStash() {
             { value: 'back', label: 'Volver al menú principal' },
         ],
     });
-    if (cancelled(action) || action === 'back') return;
+    if (isCancel(action) || action === 'back') return;
 
     if (action === 'list' || action === 'apply') {
         const stashes = (await git(['stash', 'list', '--format=%gd%x09%gs']))
@@ -232,7 +230,7 @@ async function manageStash() {
                 label: `${ref}: ${displayPath(description)}`,
             })),
         });
-        if (cancelled(stashRef)) return;
+        if (isCancel(stashRef)) return;
         await git(['stash', 'apply', stashRef]);
         console.log(chalk.green('Stash aplicado; se conserva en la lista.'));
         return;
@@ -244,10 +242,11 @@ async function manageStash() {
         return;
     }
     const message = await text({
-        message: 'Descripción para el stash:',
+        message: 'Descripción del stash (ej.: trabajo pendiente en el formulario):',
+        placeholder: 'trabajo pendiente en el formulario',
         validate: (value) => value.trim() ? undefined : 'La descripción no puede estar vacía.',
     });
-    if (cancelled(message)) return;
+    if (isCancel(message)) return;
 
     await git(['stash', 'push', '--include-untracked', '--message', message]);
     console.log(chalk.green('Cambios guardados en el stash.'));
@@ -264,7 +263,7 @@ async function discardChanges() {
         options: changeOptions(changes),
         required: true,
     });
-    if (cancelled(selectedFiles)) return;
+    if (isCancel(selectedFiles)) return;
 
     const selectedChanges = changes.filter(({ file }) => selectedFiles.includes(file));
     const paths = selectedChanges.map(({ file }) => file);
@@ -272,7 +271,7 @@ async function discardChanges() {
     const confirmed = await confirm({
         message: `Esto eliminará permanentemente los cambios de: ${displayNames}. ¿Continuar?`,
     });
-    if (cancelled(confirmed) || !confirmed) {
+    if (isCancel(confirmed) || !confirmed) {
         outro('Operación cancelada.');
         return;
     }
@@ -328,7 +327,7 @@ async function run() {
                 ],
             });
 
-            if (cancelled(action) || action === 'exit') {
+            if (isCancel(action) || action === 'exit') {
                 done = true;
                 continue;
             }
