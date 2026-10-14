@@ -35,6 +35,18 @@ function warning(message) {
     console.log(`${chalk.yellow.bold('!')} ${message}`);
 }
 
+async function pushChanges() {
+    const task = spinner();
+    task.start('Subiendo cambios a GitHub...');
+    try {
+        await git(['push']);
+        task.stop(`${chalk.green.bold('✓')} Cambios subidos correctamente.`);
+    } catch (error) {
+        task.stop(`${chalk.red.bold('✗')} No se pudieron subir los cambios.`);
+        throw error;
+    }
+}
+
 export function parseStatusOutput(output) {
     return output.split('\0').filter(Boolean).flatMap((entry) => {
         if (entry.length < 4) return [];
@@ -142,14 +154,7 @@ async function createCommit() {
         return;
     }
 
-    task.start('Subiendo cambios...');
-    try {
-        await git(['push']);
-        task.stop(`${chalk.green.bold('✓')} Cambios subidos correctamente.`);
-    } catch (error) {
-        task.stop(`${chalk.red.bold('✗')} El commit se creó, pero no se pudo completar el push.`);
-        throw error;
-    }
+    await pushChanges();
 }
 
 async function quickCommit() {
@@ -427,6 +432,7 @@ async function run() {
                 message: '¿Qué quieres hacer?',
                 options: [
                     { value: 'quickCommit', label: 'Commit rápido (todos los cambios)' },
+                    { value: 'push', label: 'Subir cambios a GitHub' },
                     { value: 'commits', label: 'Commits' },
                     { value: 'changes', label: 'Cambios' },
                     { value: 'branches', label: 'Ramas' },
@@ -440,6 +446,7 @@ async function run() {
                 continue;
             }
             if (action === 'quickCommit') await quickCommit();
+            if (action === 'push') await pushChanges();
             if (action === 'commits') await manageCommits();
             if (action === 'changes') await manageChanges();
             if (action === 'branches') await manageBranches();
