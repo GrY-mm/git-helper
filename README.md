@@ -1,46 +1,55 @@
-# 🚀 Git Helper CLI
+# Git Helper CLI
 
-Una interfaz interactiva y visual para la terminal que simplifica y agiliza el flujo de trabajo diario con Git.
+`ghelp` es una interfaz interactiva para realizar operaciones habituales de Git paso a paso, conservando el control de los archivos y acciones seleccionados.
 
----
+## Funciones
 
-## 💡 ¿Qué hace?
+- Revisar el estado completo del repositorio.
+- Seleccionar archivos individuales para crear un commit local; otros cambios ya preparados se mantienen fuera de ese commit.
+- Elegir si se ejecuta `git push` después de crear el commit.
+- Consultar los últimos 20 commits.
+- Listar ramas, crear una rama y cambiar de rama.
+- Guardar cambios en un stash (incluidos archivos nuevos), ver stashes y aplicar uno sin eliminarlo.
+- Descartar cambios seleccionados con confirmación explícita.
 
-`git-helper` te permite realizar las tareas más comunes de Git (como añadir cambios, crear commits y subirlos a GitHub) mediante menús interactivos y guiados, sin necesidad de recordar flags ni escribir comandos largos.
+Las operaciones de Git se ejecutan en el repositorio actual. El descarte de cambios es permanente; revisa cuidadosamente la selección antes de confirmarla.
 
----
+## Consejos para escribir
 
-## 🛠️ Requisitos Previos
+- **Ramas:** usa un prefijo que explique el propósito y un nombre breve en minúsculas, separado por guiones. Ejemplos: `feature/inicio-sesion`, `fix/error-login`, `docs/guia-instalacion`.
+- **Commits:** escribe una acción breve que describa el cambio. Ejemplo: `feat: añade inicio de sesión`.
+- **Stash:** describe el trabajo que guardas para poder reconocerlo después. Ejemplo: `trabajo pendiente en el formulario`.
 
-* **Node.js** (versión 18 o superior)
-* **Git** instalado y configurado en tu equipo
+## Requisitos
 
----
+- Node.js 18 o superior.
+- Git instalado y disponible en `PATH`.
 
-## 🚀 Instalación Local
+## Instalación
 
-1. Clona este repositorio:
-   ```bash
-   git clone https://github.com/GrY-mm/git-helper.git
-   cd git-helper
+```bash
+git clone https://github.com/GrY-mm/git-helper.git
+cd git-helper
+npm install
+npm link
+```
 
-2. Instala las dependencias:
-   ```bash
-   npm install
+`npm link` registra el comando `ghelp` para ejecutarlo desde otros repositorios.
 
-3. Enlaza el comando de forma global en tu sistema:
-   ```bash
-   npm link
+## Uso
 
----
+Abre una terminal dentro de cualquier repositorio Git y ejecuta:
 
-## 🎮 Uso
-Simplemente abre cualquier repositorio de Git en tu terminal y ejecuta:
-   ```bash
-   ghelp
- ```
-Sigue las instrucciones en pantalla para navegar por el menú utilizando las flechas del teclado.
+```bash
+ghelp
+```
 
----
-## 📄 Licencia
+Navega el menú con las flechas y confirma las opciones con Enter. Para ejecutar las pruebas:
+
+```bash
+npm test
+```
+
+## Licencia
+
 Este proyecto está bajo la Licencia MIT.
