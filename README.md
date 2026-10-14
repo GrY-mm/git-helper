@@ -21,7 +21,7 @@ Una interfaz interactiva y visual para la terminal que simplifica y agiliza el f
 
 1. Clona este repositorio:
    ```bash
-   git clone [https://github.com/tu-usuario/git-helper.git](https://github.com/tu-usuario/git-helper.git)
+   git clone https://github.com/GrY-mm/git-helper.git
    cd git-helper
 
 2. Instala las dependencias:
